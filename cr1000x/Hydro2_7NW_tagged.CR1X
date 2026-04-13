@@ -1,0 +1,40 @@
+' CR1000X tagged serial transmit example for MKR WAN 1310 workflow
+' Based on the user's Hydro2_7NW program, with the transmit block adapted
+' to send tagged name=value pairs.
+
+' Add near top of program:
+Public TxMsg As String * 512
+
+' Inside the scan where values are ready:
+TxMsg = "S,"
+
+' --- VWC ---
+TxMsg = TxMsg & "VWC5=" & VWC_5cm
+TxMsg = TxMsg & ",VWC10=" & VWC_10cm
+TxMsg = TxMsg & ",VWC20=" & VWC_20cm
+TxMsg = TxMsg & ",VWC50=" & VWC_50cm
+TxMsg = TxMsg & ",VWC100=" & VWC_100cm
+
+' --- EC ---
+TxMsg = TxMsg & ",EC5=" & EC_5cm
+TxMsg = TxMsg & ",EC10=" & EC_10cm
+TxMsg = TxMsg & ",EC20=" & EC_20cm
+TxMsg = TxMsg & ",EC50=" & EC_50cm
+TxMsg = TxMsg & ",EC100=" & EC_100cm
+
+' --- TEMP ---
+TxMsg = TxMsg & ",T5=" & T_5cm
+TxMsg = TxMsg & ",T10=" & T_10cm
+TxMsg = TxMsg & ",T20=" & T_20cm
+TxMsg = TxMsg & ",T50=" & T_50cm
+TxMsg = TxMsg & ",T100=" & T_100cm
+
+' --- PRECIP ---
+TxMsg = TxMsg & ",PRECIP=" & Precip_mm
+
+' --- END FRAME ---
+TxMsg = TxMsg & ",F"
+TxMsg = TxMsg & CHR(13)
+TxMsg = TxMsg & CHR(10)
+
+SerialOut(ComC5, TxMsg, "", 0, 0)
