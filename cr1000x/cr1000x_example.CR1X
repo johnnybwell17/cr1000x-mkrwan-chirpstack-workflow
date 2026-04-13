@@ -1,0 +1,178 @@
+' Example CR1000X Program
+' Reads five CS650/CS655 soil probes at different depths,
+' reads precipitation, and sends tagged serial data out ComC5
+' in this format:
+' S,VWC5=0.23,VWC10=0.25,...,PRECIP=0.00,F
+
+' =========================
+' Declare Variables
+' =========================
+Public Batt_Volt
+Public PTemp_C
+Public Rain_mm
+
+Public CS650_5cm(3)
+Public CS650_10cm(3)
+Public CS650_20cm(3)
+Public CS650_50cm(3)
+Public CS650_100cm(3)
+
+Alias CS650_5cm(1)=VWC_5cm
+Alias CS650_5cm(2)=EC_5cm
+Alias CS650_5cm(3)=T_5cm
+
+Alias CS650_10cm(1)=VWC_10cm
+Alias CS650_10cm(2)=EC_10cm
+Alias CS650_10cm(3)=T_10cm
+
+Alias CS650_20cm(1)=VWC_20cm
+Alias CS650_20cm(2)=EC_20cm
+Alias CS650_20cm(3)=T_20cm
+
+Alias CS650_50cm(1)=VWC_50cm
+Alias CS650_50cm(2)=EC_50cm
+Alias CS650_50cm(3)=T_50cm
+
+Alias CS650_100cm(1)=VWC_100cm
+Alias CS650_100cm(2)=EC_100cm
+Alias CS650_100cm(3)=T_100cm
+
+Alias Rain_mm=Precip_mm
+
+Public TxMsg As String * 512
+
+' =========================
+' Units
+' =========================
+Units Batt_Volt=Volts
+Units PTemp_C=Deg C
+
+Units VWC_5cm=m^3/m^3
+Units EC_5cm=dS/m
+Units T_5cm=Deg C
+
+Units VWC_10cm=m^3/m^3
+Units EC_10cm=dS/m
+Units T_10cm=Deg C
+
+Units VWC_20cm=m^3/m^3
+Units EC_20cm=dS/m
+Units T_20cm=Deg C
+
+Units VWC_50cm=m^3/m^3
+Units EC_50cm=dS/m
+Units T_50cm=Deg C
+
+Units VWC_100cm=m^3/m^3
+Units EC_100cm=dS/m
+Units T_100cm=Deg C
+
+' =========================
+' Data Tables
+' =========================
+DataTable(SoilProfile_60min,True,-1)
+  DataInterval(0,60,Min,10)
+  Minimum(1,Batt_Volt,FP2,False,False)
+  Sample(1,PTemp_C,FP2)
+
+  Average(1,VWC_5cm,FP2,False)
+  Average(1,EC_5cm,FP2,False)
+  Average(1,T_5cm,FP2,False)
+
+  Average(1,VWC_10cm,FP2,False)
+  Average(1,EC_10cm,FP2,False)
+  Average(1,T_10cm,FP2,False)
+
+  Average(1,VWC_20cm,FP2,False)
+  Average(1,EC_20cm,FP2,False)
+  Average(1,T_20cm,FP2,False)
+
+  Average(1,VWC_50cm,FP2,False)
+  Average(1,EC_50cm,FP2,False)
+  Average(1,T_50cm,FP2,False)
+
+  Average(1,VWC_100cm,FP2,False)
+  Average(1,EC_100cm,FP2,False)
+  Average(1,T_100cm,FP2,False)
+EndTable
+
+DataTable(Rain_15min,True,-1)
+  DataInterval(0,15,Min,10)
+  Minimum(1,Batt_Volt,FP2,False,False)
+  Totalize(1,Rain_mm,FP2,False)
+EndTable
+
+' =========================
+' Main Program
+' =========================
+BeginProg
+
+  ' Open ComC5 for serial output at 9600 baud
+  SerialOpen(ComC5, 9600, 16, 0, 10000, 1)
+
+  Battery(Batt_Volt)
+
+  Scan(60,Sec,1,0)
+
+    ' Measure precipitation
+    PulseCount(Rain_mm,1,P1,1,0,0.254,0)
+
+    ' Panel temperature
+    PanelTemp(PTemp_C,_60Hz)
+
+    ' Read CS650 / CS655 probes once per minute
+    If TimeIntoInterval(0,1,Min) Then
+
+      ' Example SDI-12 addresses:
+      ' 0, 1, 2 on control port C3
+      ' 3, 4 on control port C7
+      SDI12Recorder(CS650_5cm(),C3,"0","M!",1,0,-1)
+      SDI12Recorder(CS650_10cm(),C3,"1","M!",1,0,-1)
+      SDI12Recorder(CS650_20cm(),C3,"2","M!",1,0,-1)
+
+      SDI12Recorder(CS650_50cm(),C7,"3","M!",1,0,-1)
+      SDI12Recorder(CS650_100cm(),C7,"4","M!",1,0,-1)
+
+    EndIf
+
+    ' Build tagged serial message
+    TxMsg = "S,"
+
+    ' --- VWC ---
+    TxMsg = TxMsg & "VWC5=" & VWC_5cm
+    TxMsg = TxMsg & ",VWC10=" & VWC_10cm
+    TxMsg = TxMsg & ",VWC20=" & VWC_20cm
+    TxMsg = TxMsg & ",VWC50=" & VWC_50cm
+    TxMsg = TxMsg & ",VWC100=" & VWC_100cm
+
+    ' --- EC ---
+    TxMsg = TxMsg & ",EC5=" & EC_5cm
+    TxMsg = TxMsg & ",EC10=" & EC_10cm
+    TxMsg = TxMsg & ",EC20=" & EC_20cm
+    TxMsg = TxMsg & ",EC50=" & EC_50cm
+    TxMsg = TxMsg & ",EC100=" & EC_100cm
+
+    ' --- Temperature ---
+    TxMsg = TxMsg & ",T5=" & T_5cm
+    TxMsg = TxMsg & ",T10=" & T_10cm
+    TxMsg = TxMsg & ",T20=" & T_20cm
+    TxMsg = TxMsg & ",T50=" & T_50cm
+    TxMsg = TxMsg & ",T100=" & T_100cm
+
+    ' --- Precipitation ---
+    TxMsg = TxMsg & ",PRECIP=" & Precip_mm
+
+    ' --- End frame ---
+    TxMsg = TxMsg & ",F"
+    TxMsg = TxMsg & CHR(13)
+    TxMsg = TxMsg & CHR(10)
+
+    ' Send out serial port
+    SerialOut(ComC5, TxMsg, "", 0, 0)
+
+    ' Store data
+    CallTable(SoilProfile_60min)
+    CallTable(Rain_15min)
+
+  NextScan
+EndProg
